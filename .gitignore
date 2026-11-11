@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+
+# Configuración local del laboratorio (la plantilla es config/lab.example.toml)
+lab.toml
+config/lab.toml
+
+# Ficheros generados o subidos por los alumnos
+*.bit
+*.bin
+snapshots/
+uploads/
+work/
