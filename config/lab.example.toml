@@ -1,0 +1,24 @@
+# Copia este fichero a config/lab.toml (no se sube a git) y ajústalo.
+# También puede indicarse con `drl -c RUTA` o con la variable DRL_CONFIG.
+
+[lab]
+openfpgaloader = "openFPGALoader"
+board_model = "zybo_z7_10"
+expected_part_prefix = "7z010"
+program_timeout_s = 60
+vivado_dir = "/tools/Xilinx/Vivado/2022.2"
+
+[[boards]]
+id = "zybo1"
+# Número de serie del chip FTDI de la placa (ver docs/etapa-1-verificacion.md).
+# Con una sola placa conectada puede omitirse.
+# ftdi_serial = "210279XXXXXX"
+# Argumentos extra para openFPGALoader, si hicieran falta:
+# extra_args = ["--cable", "digilent_hs2"]
+
+[boards.camera]
+# Mejor una ruta estable que un índice: ls -l /dev/v4l/by-id/
+# device = "/dev/v4l/by-id/usb-...-video-index0"
+device = 0
+width = 1280
+height = 720

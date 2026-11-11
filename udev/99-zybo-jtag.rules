@@ -1,0 +1,2 @@
+# JTAG de la Zybo Z7 (FTDI FT2232H): permite usarlo a los miembros del grupo plugdev.
+SUBSYSTEM=="usb", ATTR{idVendor}=="0403", ATTR{idProduct}=="6010", MODE="0660", GROUP="plugdev"
