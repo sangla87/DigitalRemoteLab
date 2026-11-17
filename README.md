@@ -1,45 +1,68 @@
 # DigitalRemoteLab
 
-Laboratorio remoto para la asignatura de electrónica digital: permite usar FPGAs Zybo Z7-10
-reales como entorno de desarrollo de circuitos digitales sencillos. Mediante una webcam y un
-entorno web se gestionarán los turnos y se visualizarán los cambios en las salidas en tiempo real.
+Laboratorio remoto para la asignatura de electrónica digital: permite usar FPGAs Digilent reales
+como entorno de desarrollo de circuitos digitales sencillos. Mediante una webcam y un entorno web
+se gestionarán los turnos y se visualizarán los cambios en las salidas en tiempo real.
 
 Los alumnos diseñan sus circuitos con el simulador
 [Digital](https://github.com/hneemann/Digital), que exporta VHDL, y los prueban en una placa real
 sin instalar nada.
+
+## Placas soportadas
+
+La placa es configurable por modelo (`config/lab.toml`). Cada modelo define cómo se llama para
+`openFPGALoader` y qué FPGA lleva, para rechazar bitstreams generados para otro dispositivo.
+
+| Modelo (`model`) | Placa | FPGA | Estado |
+|---|---|---|---|
+| `nexys4ddr` | Digilent Nexys 4 DDR / Nexys A7-100T | Artix-7 XC7A100T | Pendiente de verificar con hardware |
+| `nexys4` | Digilent Nexys 4 | Artix-7 XC7A100T | Pendiente de verificar con hardware |
+| `zybo_z7_10` | Digilent Zybo Z7-10 | Zynq-7010 | Probado solo con un `.bit` real y hardware simulado |
+
+La Nexys 4 y la Nexys 4 DDR llevan la misma FPGA pero **tienen pines distintos**: sus `.xdc` no son
+intercambiables. Una placa que no esté en el catálogo puede definirse en `lab.toml` con
+`ofl_board` y `part_prefix`. La Basys 2 (Spartan-3E) no es viable: no la soporta Vivado, solo ISE.
 
 ## Estado del proyecto
 
 | Etapa | Contenido | Estado |
 |---|---|---|
 | 0 | Decisiones de diseño | Hecha (ver más abajo) |
-| 1 | Validación de `.bit`, carga con `openFPGALoader`, captura de cámara y CLI `drl` | Código y tests listos (hardware simulado). **Pendiente de verificar con la Zybo y la cámara reales**: [lista de comprobaciones](docs/etapa-1-verificacion.md) |
+| 1 | Validación de `.bit`, carga con `openFPGALoader`, captura de cámara, CLI `drl`, placa configurable, diseño de prueba para la Nexys | Código y tests listos (hardware simulado). **Pendiente de verificar con la placa y la cámara reales**: [lista de comprobaciones](docs/etapa-1-verificacion.md) |
 | 2 | Compilación en el servidor (Vivado en modo batch desde el VHDL de Digital) y backend web con vídeo en vivo | Pendiente |
 | 3 | Interruptores y pulsadores virtuales (GPIO a Pmod), `.xdc` plantilla, solución para el reloj | Pendiente |
-| 4 | Turnos, sesiones, tiempo máximo, reinicio de la placa al terminar y las cuatro placas | Pendiente |
+| 4 | Turnos, sesiones, tiempo máximo, reinicio de la placa al terminar y varias placas | Pendiente |
 | 5 | Despliegue estable (servicio, HTTPS) y acceso restringido a alumnos (VPN o aula virtual) | Pendiente |
 
 ### Lo que hay hecho (etapa 1)
 
 - `bitstream.py`: lee la cabecera de un `.bit` de Vivado y rechaza ficheros que no sean `.bit`,
-  truncados, demasiado grandes o de otra FPGA (la parte debe ser `7z010`). Probado también con un
-  `.bit` real generado con Vivado 2020.2.
+  truncados, demasiado grandes o de otra FPGA distinta de la de la placa. Probado con un `.bit`
+  real generado con Vivado 2020.2.
+- `boards.py` y `config.py`: catálogo de modelos de placa y configuración TOML con varias placas,
+  cada una con su modelo, su número de serie FTDI y su cámara.
 - `programmer.py`: carga el `.bit` en la SRAM de la FPGA ejecutando `openFPGALoader` (sin shell),
-  con tiempo máximo, captura de la salida y selección de placa por número de serie del FTDI.
+  con tiempo máximo, captura de la salida y selección de placa por número de serie.
 - `camera.py`: captura un JPEG de la webcam con OpenCV (V4L2), descartando los primeros
   fotogramas para que la cámara ajuste la exposición.
+- `usb.py`: lista las placas USB con su número de serie y las cámaras, sin privilegios.
 - `lab.py`: fachada que valida, programa y fotografía una placa. La reutilizará el backend web.
-- `cli.py`: comando `drl` (`info`, `detect`, `program`, `snapshot`, `doctor`).
-- `config.py`: configuración TOML con varias placas, cada una con su cámara.
-- 50 tests con placa y cámara simuladas (uno solo se ejecuta si se aporta un `.bit` real).
+- `cli.py`: comando `drl` (`info`, `detect`, `program`, `snapshot`, `boards`, `devices`, `doctor`).
+- `hdl/test_board/` y `scripts/build_test_bitstream.tcl`: diseño de prueba (contador en los LEDs
+  e interruptores reflejados) con banco de pruebas, y script para compilarlo con Vivado en modo
+  batch para la Nexys 4 o la Nexys 4 DDR. Los pines proceden de los XDC oficiales de Digilent.
+- 74 tests con placa y cámara simuladas, más la simulación del banco de pruebas en GHDL si está
+  instalado (uno solo se ejecuta si se aporta un `.bit` real).
 
 ### Pendiente
 
-- Verificar la etapa 1 con hardware real y ajustar lo que haga falta.
-- Etapa 2: compilar el VHDL en el servidor con Vivado 2022.2
+- Verificar la etapa 1 con la Nexys 4 y la cámara reales y ajustar lo que haga falta (puede
+  hacerse con [Claude Code en el servidor](docs/trabajar-con-claude-code.md)).
+- Etapa 2: compilar el VHDL de Digital en el servidor con Vivado 2022.2
   (`/tools/Xilinx/Vivado/2022.2`), backend (FastAPI) y vídeo MJPEG.
-- Etapas 3 a 5 (ver tabla).
-- Decisiones abiertas (ver "Decisiones de diseño").
+- Etapas 3 a 5 (ver tabla) y las decisiones abiertas (ver "Decisiones de diseño").
+- Estudiar, como etapa opcional y aparte, un flujo abierto (Yosys + nextpnr-xilinx, vía openXC7)
+  para Artix-7 que evite depender de Vivado.
 
 ## Cómo funcionará
 
@@ -51,7 +74,7 @@ Servidor web ── turnos ── compilación Vivado ──► .bit
    │                                              │
    │  controles virtuales (WebSocket)             ▼
    ▼                                      openFPGALoader (JTAG)
-GPIO ──► pines Pmod de la Zybo ◄───────────── Zybo Z7-10 (×4)
+GPIO ──► pines Pmod de la placa ◄──────────── Placa FPGA
                                                   ▲
 Vídeo en vivo (MJPEG) ◄───────── webcam ──────────┘
 ```
@@ -60,8 +83,9 @@ Vídeo en vivo (MJPEG) ◄───────── webcam ──────�
 
 - Servidor con Ubuntu 22.04 y Python 3.10 o superior.
 - [openFPGALoader](https://github.com/trabucayre/openFPGALoader) (se compila desde su repositorio).
-- Vivado 2022.2 en `/tools/Xilinx/Vivado/2022.2` (solo desde la etapa 2).
-- Placa Zybo Z7-10 y una webcam USB compatible con V4L2 (UVC).
+- Vivado 2022.2 en `/tools/Xilinx/Vivado/2022.2` (para generar `.bit`; la etapa 1 solo carga).
+- Una placa de la tabla de arriba y una webcam USB compatible con V4L2 (UVC).
+- Opcional: GHDL, para ejecutar la simulación del diseño de prueba en los tests.
 
 ## Instalación
 
@@ -81,7 +105,8 @@ cp config/lab.example.toml config/lab.toml
 Copia `config/lab.example.toml` a `config/lab.toml` (no se sube a git). La ruta también puede
 indicarse con `drl -c RUTA` o con la variable `DRL_CONFIG`. Lo más importante:
 
-- `ftdi_serial` de cada placa: necesario cuando hay varias conectadas.
+- `model` en `[lab]` (y opcionalmente por placa): `nexys4ddr`, `nexys4` o `zybo_z7_10`.
+- `ftdi_serial` de cada placa: necesario cuando hay varias conectadas. `drl devices` lo muestra.
 - `device` de la cámara: mejor una ruta estable de `/dev/v4l/by-id/` que un índice.
 - `vivado_dir`: ruta de Vivado (por defecto `/tools/Xilinx/Vivado/2022.2`).
 
@@ -89,17 +114,27 @@ indicarse con `drl -c RUTA` o con la variable `DRL_CONFIG`. Lo más importante:
 
 ```bash
 drl doctor                                   # comprueba el servidor
-drl info Contadores.bit                      # valida un .bit y muestra su cabecera
+drl devices                                  # placas USB (con su nº de serie) y cámaras
+drl boards                                   # placas configuradas y modelos soportados
+drl info test_board.bit                      # valida un .bit contra la placa y muestra su cabecera
 drl detect                                   # detecta la FPGA conectada
-drl program Contadores.bit                   # carga el .bit en la placa
-drl program Contadores.bit --snapshot f.jpg  # lo carga y guarda una foto
+drl program test_board.bit                   # carga el .bit en la placa
+drl program test_board.bit --snapshot f.jpg  # lo carga y guarda una foto
 drl snapshot -o foto.jpg                     # solo la foto
-drl program Contadores.bit -b zybo2          # elige la placa configurada como zybo2
+drl program test_board.bit -b nexys2         # elige la placa configurada con id nexys2
 ```
 
-Con `--fake` (por ejemplo `drl --fake program Contadores.bit`) se usan una placa y una cámara
-simuladas, útil para desarrollar sin hardware. `drl` devuelve 0 si todo va bien y 1 si hay un
-error, con un mensaje claro en español.
+Para generar un `.bit` de prueba para la Nexys (necesita Vivado):
+
+```bash
+source /tools/Xilinx/Vivado/2022.2/settings64.sh
+vivado -mode batch -nojournal -nolog -source scripts/build_test_bitstream.tcl -tclargs nexys4ddr
+drl program build/nexys4ddr/test_board.bit --snapshot foto.jpg
+```
+
+Con `--fake` (por ejemplo `drl --fake program x.bit`) se usan una placa y una cámara simuladas,
+útil para desarrollar sin hardware. `drl` devuelve 0 si todo va bien y 1 si hay un error, con un
+mensaje claro en español.
 
 ## Desarrollo
 
@@ -112,13 +147,18 @@ DRL_SAMPLE_BIT=ruta/al/Contadores.bit pytest   # incluye la prueba con un .bit r
 
 Cada etapa se desarrolla en una rama `etapa-N` y se integra en `main` mediante un pull request.
 El hardware real siempre va detrás de interfaces (`Programmer`, `Camera`) con versiones
-simuladas, de modo que la lógica de turnos, la API y la web se puedan probar sin placa.
+simuladas, de modo que la lógica de turnos, la API y la web se puedan probar sin placa. El trabajo
+con la placa real desde el servidor, con Claude Code, está explicado en
+[docs/trabajar-con-claude-code.md](docs/trabajar-con-claude-code.md) y sus reglas en
+[CLAUDE.md](CLAUDE.md).
 
 ```
 src/digitalremotelab/   código del paquete
 tests/                  tests automáticos
 config/                 plantilla de configuración
-udev/                   regla udev para el JTAG de la Zybo
+hdl/test_board/         diseño de prueba, banco de pruebas y restricciones por placa
+scripts/                scripts de Vivado
+udev/                   regla udev para el JTAG de las placas Digilent (FTDI)
 docs/                   documentación y listas de verificación
 ```
 
@@ -127,24 +167,28 @@ docs/                   documentación y listas de verificación
 - **Quién compila.** Los alumnos exportan VHDL desde Digital y el servidor genera el `.bit` con
   Vivado (más rápido que MyApps y sin instalar nada). La subida directa de un `.bit` se mantiene
   como vía alternativa.
+- **Placa.** Configurable por modelo. Se prevé usar la Nexys 4 (Artix-7 100T), que además trae
+  display de 7 segmentos de 8 dígitos, 16 LEDs y 16 interruptores. Se descarta la Basys 2
+  (Spartan-3E: sin soporte de Vivado ni de herramientas abiertas).
 - **Cargador.** `openFPGALoader` en lugar de Vivado Lab: ligero y sin licencia. La etapa 1 sirve
-  para confirmar que funciona bien con la Zybo Z7-10.
+  para confirmar que funciona bien con la placa elegida.
 - **Cámara.** Webcam USB (UVC) vía OpenCV; vídeo MJPEG en la web por su sencillez.
 - **Acceso.** Inicialmente solo desde la red de la universidad. Más adelante, VPN o aula
   virtual, para lo que se necesitará la colaboración del servicio de informática.
+- **Herramientas abiertas.** Yosys + nextpnr-xilinx (openXC7) cubren Artix-7, pero son
+  experimentales: se valorarán como etapa aparte, tras tener funcionando el flujo con Vivado.
 
 ### Decisiones abiertas
 
 - **Convención de nombres de puertos.** Digital exporta una entidad `main` con los puertos que
   tenga el circuito (en el ejemplo: `SW0`, `SW1`, `SW2`, `CLK`, `LED0`..`LED3`). Un `.xdc`
-  plantilla asignará pines por nombre (`SW0..3`, `BTN0..3`, `LED0..3`, `CLK`...). Hay que fijar la
+  plantilla asignará pines por nombre (`SW0..15`, `BTN0..4`, `LED0..15`, `CLK`...). Hay que fijar la
   lista y documentarla para los alumnos.
-- **Reloj.** El oscilador de la Zybo va a 125 MHz: un contador conectado directamente a `CLK`
-  parecería congelado en la cámara. Opciones: pulsos de reloj manuales desde un botón virtual,
-  un reloj dividido (1 o 2 Hz) en un envoltorio, o un selector entre ambos.
-- **Displays de 7 segmentos.** La Zybo Z7-10 no los incluye; harían falta Pmods.
-- **Controles virtuales.** Los pulsadores físicos de la placa van cableados a la FPGA, por lo que
-  los virtuales actuarán a través de GPIO del servidor conectados a pines Pmod.
+- **Reloj.** El oscilador va a 100 MHz (125 MHz en la Zybo): un contador conectado directamente a
+  `CLK` parecería congelado en la cámara. Opciones: pulsos de reloj manuales desde un botón
+  virtual, un reloj dividido (1 o 2 Hz) en un envoltorio, o un selector entre ambos.
+- **Controles virtuales.** Los pulsadores e interruptores físicos de la placa van cableados a la
+  FPGA, por lo que los virtuales actuarán a través de GPIO del servidor conectados a pines Pmod.
 - **Seguridad de la compilación.** Vivado se ejecutará sobre código de los alumnos: usuario sin
   privilegios, directorio de trabajo aislado y límites de tiempo y memoria.
 

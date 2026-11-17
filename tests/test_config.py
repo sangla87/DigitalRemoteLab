@@ -8,7 +8,8 @@ def test_defaults_when_no_file(monkeypatch, tmp_path):
     monkeypatch.delenv("DRL_CONFIG", raising=False)
     config = load_config()
     assert config == LabConfig()
-    assert config.board().id == "zybo1"
+    assert config.board().id == "board1"
+    assert config.board().model == "zybo_z7_10"
     assert config.vivado_dir == "/tools/Xilinx/Vivado/2022.2"
 
 
@@ -53,12 +54,16 @@ def test_env_var_selects_file(tmp_path, monkeypatch):
 
 def test_example_file_in_repo_is_valid():
     config = load_config("config/lab.example.toml")
-    assert config.board().id == "zybo1"
+    assert config.board().id == "nexys1"
+    assert config.board().ofl_board == "nexys4ddr"
 
 
 def test_unknown_key_is_rejected():
     with pytest.raises(ConfigError, match="desconocidas"):
         parse_config({"lab": {"openfpgaloder": "x"}})
+    # claves de la versión anterior: ahora el modelo va en 'model'
+    with pytest.raises(ConfigError, match="board_model"):
+        parse_config({"lab": {"board_model": "zybo_z7_10"}})
 
 
 def test_duplicate_board_ids_are_rejected():
@@ -82,7 +87,7 @@ def test_wrong_types_are_rejected():
 
 
 def test_unknown_board_lookup_lists_known_ones():
-    with pytest.raises(ConfigError, match="zybo1"):
+    with pytest.raises(ConfigError, match="board1"):
         LabConfig().board("nope")
 
 

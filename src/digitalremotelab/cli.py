@@ -6,7 +6,6 @@ import argparse
 import glob
 import importlib.util
 import shutil
-import subprocess
 import sys
 import time
 from collections.abc import Sequence
@@ -14,15 +13,17 @@ from datetime import datetime
 from pathlib import Path
 
 from digitalremotelab import __version__
+from digitalremotelab.boards import MODELS
 from digitalremotelab.config import LabConfig, load_config
 from digitalremotelab.errors import DRLError
 from digitalremotelab.lab import Lab
 from digitalremotelab.programmer import ProgramResult
+from digitalremotelab.usb import list_cameras, list_ftdi_devices
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="drl", description="Laboratorio remoto de FPGAs (Zybo Z7-10)."
+        prog="drl", description="Laboratorio remoto de FPGAs de Digilent."
     )
     parser.add_argument("--version", action="version", version=f"drl {__version__}")
     parser.add_argument("-c", "--config", help="Fichero de configuración TOML.")
@@ -35,6 +36,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("info", help="Valida un .bit y muestra su cabecera.")
     p.add_argument("bitstream")
+    p.add_argument("-b", "--board", help="Placa contra la que se valida (por defecto, la primera).")
 
     p = sub.add_parser("detect", help="Detecta la FPGA conectada (openFPGALoader --detect).")
     p.add_argument("-b", "--board", help="Identificador de la placa (por defecto, la primera).")
@@ -54,6 +56,10 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("-b", "--board")
     p.add_argument("-o", "--output", help="Fichero de salida (por defecto, con fecha y hora).")
 
+    sub.add_parser("boards", help="Muestra las placas configuradas y los modelos soportados.")
+    sub.add_parser(
+        "devices", help="Lista las placas USB (con su nº de serie) y las cámaras detectadas."
+    )
     sub.add_parser("doctor", help="Comprueba que el servidor tiene todo lo necesario.")
     return parser
 
@@ -67,12 +73,13 @@ def _print_failure(result: ProgramResult) -> None:
 
 
 def _cmd_info(lab: Lab, args: argparse.Namespace) -> int:
-    info = lab.validate(args.bitstream)
+    info = lab.validate(args.bitstream, args.board)
+    board = lab.config.board(args.board)
     print(f"Diseño:     {info.design_name}")
     print(f"Parte:      {info.part}")
     print(f"Generado:   {info.date} {info.time} con Vivado {info.tool_version or '?'}")
     print(f"Datos:      {info.payload_length} bytes")
-    print("Bitstream válido para la Zybo Z7-10.")
+    print(f"Bitstream válido para la placa '{board.id}' ({board.model_name}).")
     return 0
 
 
@@ -121,15 +128,29 @@ def _doctor_lines(config: LabConfig) -> list[tuple[str, str]]:
         else ("FALTA", f"openFPGALoader no está en el PATH ('{config.openfpgaloader}').")
     )
 
-    lsusb = shutil.which("lsusb")
-    if lsusb:
-        out = subprocess.run([lsusb], capture_output=True, text=True, check=False).stdout
-        count = sum(1 for line in out.splitlines() if "0403:6010" in line)
+    ftdi = list_ftdi_devices()
+    configured = len(config.boards)
+    if len(ftdi) >= configured:
         lines.append(
-            ("OK", f"Detectado(s) {count} dispositivo(s) FTDI 0403:6010 (JTAG de la Zybo).")
-            if count
-            else ("AVISO", "No se ve ningún FTDI 0403:6010: ¿placa conectada y encendida?")
+            ("OK", f"{len(ftdi)} placa(s) USB FTDI detectada(s); hay {configured} configurada(s).")
         )
+    else:
+        lines.append(
+            (
+                "AVISO",
+                f"Se detectan {len(ftdi)} dispositivo(s) FTDI y hay {configured} placa(s) "
+                "configurada(s): ¿placa apagada o cable desconectado?",
+            )
+        )
+    for board in config.boards:
+        if board.ftdi_serial and board.ftdi_serial not in {d.serial for d in ftdi}:
+            lines.append(
+                (
+                    "AVISO",
+                    f"La placa '{board.id}' espera el serie '{board.ftdi_serial}', "
+                    "que no aparece entre los dispositivos conectados (mira `drl devices`).",
+                )
+            )
 
     videos = sorted(glob.glob("/dev/video*"))
     lines.append(
@@ -153,6 +174,36 @@ def _doctor_lines(config: LabConfig) -> list[tuple[str, str]]:
     return lines
 
 
+def _cmd_boards(lab: Lab, args: argparse.Namespace) -> int:
+    print("Placas configuradas:")
+    for board in lab.config.boards:
+        print(f"  {board.id}: {board.model_name}")
+        print(f"      openFPGALoader -b {board.ofl_board}; FPGA {board.part_prefix}...")
+        print(f"      FTDI serial: {board.ftdi_serial or '(sin indicar)'}")
+        print(f"      cámara: {board.camera.device!r}")
+    print("Modelos soportados:")
+    for model in MODELS.values():
+        extra = f" ({model.notes})" if model.notes else ""
+        print(f"  {model.key}: {model.name}{extra}")
+    return 0
+
+
+def _cmd_devices(lab: Lab, args: argparse.Namespace) -> int:
+    ftdi = list_ftdi_devices()
+    print("Dispositivos USB de FTDI (JTAG de las placas):")
+    if not ftdi:
+        print("  ninguno detectado")
+    for dev in ftdi:
+        print(f"  {dev.vid_pid}  serie={dev.serial or '?'}  {dev.product}  (USB {dev.bus_path})")
+    cameras = list_cameras()
+    print("Cámaras (rutas estables):")
+    if not cameras:
+        print("  ninguna detectada en /dev/v4l/by-id")
+    for path in cameras:
+        print(f"  {path}")
+    return 0
+
+
 def _cmd_doctor(lab: Lab, args: argparse.Namespace) -> int:
     lines = _doctor_lines(lab.config)
     for status, text in lines:
@@ -165,6 +216,8 @@ _COMMANDS = {
     "detect": _cmd_detect,
     "program": _cmd_program,
     "snapshot": _cmd_snapshot,
+    "boards": _cmd_boards,
+    "devices": _cmd_devices,
     "doctor": _cmd_doctor,
 }
 

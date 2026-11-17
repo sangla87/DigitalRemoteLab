@@ -120,13 +120,16 @@ def parse_bitstream(data: bytes) -> BitstreamInfo:
     )
 
 
-def validate_for_part(info: BitstreamInfo, expected_prefix: str) -> None:
+def validate_for_part(
+    info: BitstreamInfo, expected_prefix: str, board_name: str | None = None
+) -> None:
     """Comprueba que el bitstream es para la FPGA de la placa (p. ej. '7z010')."""
     part = info.part.lower().removeprefix("xc")
     if not part.startswith(expected_prefix.lower()):
+        target = f" ({board_name})" if board_name else ""
         raise BitstreamError(
-            f"El bitstream es para '{info.part}', pero la placa usa una '{expected_prefix}...'. "
-            "Genera el bitstream para la Zybo Z7-10 (xc7z010clg400-1)."
+            f"El bitstream es para '{info.part}', pero la placa{target} usa una "
+            f"'{expected_prefix}...'. Genera el bitstream para esa FPGA."
         )
 
 

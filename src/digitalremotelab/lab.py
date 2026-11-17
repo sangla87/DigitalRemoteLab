@@ -41,16 +41,18 @@ class Lab:
             lambda board: OpenCVCamera(board.camera),
         )
 
-    def validate(self, bitstream: str | Path) -> BitstreamInfo:
+    def validate(self, bitstream: str | Path, board_id: str | None = None) -> BitstreamInfo:
+        """Valida el .bit contra la FPGA de la placa indicada (o de la primera)."""
+        board = self.config.board(board_id)
         info = load_bitstream(bitstream, self.config.max_bitstream_bytes)
-        validate_for_part(info, self.config.expected_part_prefix)
+        validate_for_part(info, board.part_prefix, board.model_name)
         return info
 
     def program(
         self, bitstream: str | Path, board_id: str | None = None
     ) -> tuple[BitstreamInfo, ProgramResult]:
         """Valida el .bit y, solo si es correcto, lo carga en la placa."""
-        info = self.validate(bitstream)
+        info = self.validate(bitstream, board_id)
         board = self.config.board(board_id)
         return info, self._programmer.program(board, Path(bitstream))
 

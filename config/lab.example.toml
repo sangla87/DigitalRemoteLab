@@ -1,23 +1,29 @@
 # Copia este fichero a config/lab.toml (no se sube a git) y ajústalo.
 # También puede indicarse con `drl -c RUTA` o con la variable DRL_CONFIG.
+# `drl devices` muestra los números de serie de las placas y las rutas de las cámaras.
 
 [lab]
 openfpgaloader = "openFPGALoader"
-board_model = "zybo_z7_10"
-expected_part_prefix = "7z010"
+# Modelo por defecto de las placas: zybo_z7_10, nexys4 o nexys4ddr (Nexys 4 DDR / Nexys A7-100T).
+# `drl boards` lista los modelos soportados.
+model = "nexys4ddr"
 program_timeout_s = 60
 vivado_dir = "/tools/Xilinx/Vivado/2022.2"
 
 [[boards]]
-id = "zybo1"
-# Número de serie del chip FTDI de la placa (ver docs/etapa-1-verificacion.md).
-# Con una sola placa conectada puede omitirse.
-# ftdi_serial = "210279XXXXXX"
+id = "nexys1"
+# model = "nexys4ddr"        # solo si difiere del modelo por defecto
+# Número de serie del chip FTDI de la placa (de `drl devices`).
+# Con una sola placa conectada puede omitirse; con varias es imprescindible.
+# ftdi_serial = "210292XXXXXX"
 # Argumentos extra para openFPGALoader, si hicieran falta:
 # extra_args = ["--cable", "digilent_hs2"]
+# Para una placa que no esté en el catálogo, indica además:
+# ofl_board = "nombre_en_openfpgaloader"
+# part_prefix = "7a35t"
 
 [boards.camera]
-# Mejor una ruta estable que un índice: ls -l /dev/v4l/by-id/
+# Mejor una ruta estable que un índice: ls -l /dev/v4l/by-id/  (o `drl devices`)
 # device = "/dev/v4l/by-id/usb-...-video-index0"
 device = 0
 width = 1280

@@ -52,7 +52,7 @@ class OpenFPGALoaderProgrammer:
     def build_command(
         self, board: BoardConfig, bitstream: Path | None = None, detect: bool = False
     ) -> list[str]:
-        cmd = [self._config.openfpgaloader, "-b", self._config.board_model]
+        cmd = [self._config.openfpgaloader, "-b", board.ofl_board]
         if board.ftdi_serial:
             cmd += ["--ftdi-serial", board.ftdi_serial]
         if self._config.jtag_freq_hz:

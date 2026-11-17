@@ -74,6 +74,31 @@ def test_cli_unknown_board(make_bit, capsys):
     assert "zybo9" in capsys.readouterr().err
 
 
+def test_cli_boards_lists_configured_board_and_models(capsys):
+    assert main(["--fake", "boards"]) == 0
+    out = capsys.readouterr().out
+    assert "board1" in out and "Zybo Z7-10" in out
+    assert "nexys4ddr" in out and "nexys4" in out
+
+
+def test_cli_devices_runs_without_hardware(capsys):
+    assert main(["--fake", "devices"]) == 0
+    out = capsys.readouterr().out
+    assert "FTDI" in out and "Cámaras" in out
+
+
+def test_cli_info_with_board_option(make_bit, tmp_path, capsys):
+    cfg = tmp_path / "lab.toml"
+    cfg.write_text(
+        '[[boards]]\nid = "n1"\nmodel = "nexys4ddr"\n[[boards]]\nid = "z1"\nmodel = "zybo_z7_10"\n'
+    )
+    bit = str(make_bit(part="7a100tcsg324"))
+    assert main(["-c", str(cfg), "--fake", "info", bit, "-b", "n1"]) == 0
+    assert "Nexys 4 DDR" in capsys.readouterr().out
+    assert main(["-c", str(cfg), "--fake", "info", bit, "-b", "z1"]) == 1
+    assert "7z010" in capsys.readouterr().err
+
+
 def test_cli_doctor_runs_and_reports(capsys):
     code = main(["--fake", "doctor"])
     out = capsys.readouterr().out

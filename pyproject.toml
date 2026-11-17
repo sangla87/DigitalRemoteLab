@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "digitalremotelab"
 version = "0.1.0"
-description = "Laboratorio remoto de FPGAs (Zybo Z7-10) para prácticas de electrónica digital"
+description = "Laboratorio remoto de FPGAs Digilent para prácticas de electrónica digital"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

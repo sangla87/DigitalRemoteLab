@@ -13,6 +13,7 @@ try:
 except ModuleNotFoundError:  # Python 3.10
     import tomli as tomllib
 
+from digitalremotelab.boards import DEFAULT_MODEL, MODELS, known_models
 from digitalremotelab.errors import DRLError
 
 ENV_VAR = "DRL_CONFIG"
@@ -22,14 +23,13 @@ _ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
 _TOP_KEYS = {"lab", "boards"}
 _LAB_KEYS = {
     "openfpgaloader",
-    "board_model",
-    "expected_part_prefix",
+    "model",
     "max_bitstream_bytes",
     "program_timeout_s",
     "jtag_freq_hz",
     "vivado_dir",
 }
-_BOARD_KEYS = {"id", "ftdi_serial", "extra_args", "camera"}
+_BOARD_KEYS = {"id", "model", "ofl_board", "part_prefix", "ftdi_serial", "extra_args", "camera"}
 _CAMERA_KEYS = {"device", "width", "height", "warmup_frames", "jpeg_quality"}
 
 
@@ -50,19 +50,46 @@ class CameraConfig:
 @dataclass(frozen=True)
 class BoardConfig:
     id: str
+    # Modelo de la placa (clave de boards.MODELS, p. ej. "nexys4ddr").
+    model: str = DEFAULT_MODEL
     # Número de serie del chip FTDI de la placa; imprescindible con varias placas.
     ftdi_serial: str | None = None
     # Argumentos extra para openFPGALoader (p. ej. ("--cable", "digilent_hs2")).
     extra_args: tuple[str, ...] = ()
     camera: CameraConfig = field(default_factory=CameraConfig)
+    # Se rellenan a partir del modelo; solo hay que indicarlos para una placa
+    # que no esté en el catálogo.
+    ofl_board: str = ""
+    part_prefix: str = ""
+
+    def __post_init__(self) -> None:
+        known = MODELS.get(self.model)
+        for name, from_model in (
+            ("ofl_board", known.ofl_board if known else ""),
+            ("part_prefix", known.part_prefix if known else ""),
+        ):
+            if getattr(self, name):
+                continue
+            if not from_model:
+                raise ConfigError(
+                    f"Modelo de placa desconocido '{self.model}' en la placa '{self.id}'. "
+                    f"Modelos conocidos: {known_models()}. Para otra placa indica "
+                    "'ofl_board' y 'part_prefix'."
+                )
+            object.__setattr__(self, name, from_model)
+
+    @property
+    def model_name(self) -> str:
+        known = MODELS.get(self.model)
+        return known.name if known else self.model
 
 
 @dataclass(frozen=True)
 class LabConfig:
-    boards: tuple[BoardConfig, ...] = (BoardConfig(id="zybo1"),)
+    boards: tuple[BoardConfig, ...] = (BoardConfig(id="board1"),)
     openfpgaloader: str = "openFPGALoader"
-    board_model: str = "zybo_z7_10"
-    expected_part_prefix: str = "7z010"
+    # Modelo que se asigna a las placas que no indican uno propio.
+    model: str = DEFAULT_MODEL
     max_bitstream_bytes: int = 4 * 1024 * 1024
     program_timeout_s: float = 60.0
     jtag_freq_hz: int | None = None
@@ -106,7 +133,7 @@ def _parse_camera(table: dict[str, Any], where: str) -> CameraConfig:
     return CameraConfig(**values)
 
 
-def _parse_board(table: dict[str, Any], index: int) -> BoardConfig:
+def _parse_board(table: dict[str, Any], index: int, default_model: str) -> BoardConfig:
     where = f"boards[{index}]"
     _only_known(table, _BOARD_KEYS, where)
     board_id = _expect(table.get("id"), str, f"{where}.id")
@@ -122,7 +149,18 @@ def _parse_board(table: dict[str, Any], index: int) -> BoardConfig:
     for arg in extra:
         _expect(arg, str, f"{where}.extra_args")
     camera = _parse_camera(table.get("camera", {}), f"{where}.camera")
-    return BoardConfig(id=board_id, ftdi_serial=serial, extra_args=tuple(extra), camera=camera)
+    extras: dict[str, str] = {}
+    for key in ("ofl_board", "part_prefix"):
+        if key in table:
+            extras[key] = _expect(table[key], str, f"{where}.{key}")
+    return BoardConfig(
+        id=board_id,
+        model=_expect(table.get("model", default_model), str, f"{where}.model"),
+        ftdi_serial=serial,
+        extra_args=tuple(extra),
+        camera=camera,
+        **extras,
+    )
 
 
 def parse_config(data: dict[str, Any]) -> LabConfig:
@@ -131,7 +169,7 @@ def parse_config(data: dict[str, Any]) -> LabConfig:
     _only_known(lab, _LAB_KEYS, "lab")
 
     values: dict[str, Any] = {}
-    for key in ("openfpgaloader", "board_model", "expected_part_prefix", "vivado_dir"):
+    for key in ("openfpgaloader", "model", "vivado_dir"):
         if key in lab:
             values[key] = _expect(lab[key], str, f"lab.{key}")
     if "max_bitstream_bytes" in lab:
@@ -145,8 +183,9 @@ def parse_config(data: dict[str, Any]) -> LabConfig:
     if "jtag_freq_hz" in lab:
         values["jtag_freq_hz"] = _expect(lab["jtag_freq_hz"], int, "lab.jtag_freq_hz")
 
-    boards_raw = data.get("boards") or [{"id": "zybo1"}]
-    boards = tuple(_parse_board(b, i) for i, b in enumerate(boards_raw))
+    default_model = values.get("model", DEFAULT_MODEL)
+    boards_raw = data.get("boards") or [{"id": "board1"}]
+    boards = tuple(_parse_board(b, i, default_model) for i, b in enumerate(boards_raw))
     ids = [b.id for b in boards]
     if len(set(ids)) != len(ids):
         raise ConfigError("Hay identificadores de placa repetidos.")
