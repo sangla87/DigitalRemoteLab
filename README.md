@@ -28,7 +28,7 @@ intercambiables. Una placa que no esté en el catálogo puede definirse en `lab.
 | Etapa | Contenido | Estado |
 |---|---|---|
 | 0 | Decisiones de diseño | Hecha (ver más abajo) |
-| 1 | Validación de `.bit`, carga con `openFPGALoader`, captura de cámara, CLI `drl`, placa configurable, diseño de prueba para la Nexys | Código y tests listos (hardware simulado). **Pendiente de verificar con la placa y la cámara reales**: [lista de comprobaciones](docs/etapa-1-verificacion.md) |
+| 1 | Validación de `.bit`, carga con `openFPGALoader`, captura de cámara, CLI `drl`, placa configurable, diseño de prueba para la Nexys | Hecha. Verificada el 17/11/2026 con una Nexys 4 y una webcam reales: todas las [comprobaciones](docs/etapa-1-verificacion.md) correctas |
 | 2 | Compilación en el servidor (Vivado en modo batch desde el VHDL de Digital) y backend web con vídeo en vivo | Pendiente |
 | 3 | Interruptores y pulsadores virtuales (GPIO a Pmod), `.xdc` plantilla, solución para el reloj | Pendiente |
 | 4 | Turnos, sesiones, tiempo máximo, reinicio de la placa al terminar y varias placas | Pendiente |
@@ -51,13 +51,17 @@ intercambiables. Una placa que no esté en el catálogo puede definirse en `lab.
 - `hdl/test_board/` y `scripts/build_test_bitstream.tcl`: diseño de prueba (contador en los LEDs
   e interruptores reflejados) con banco de pruebas, y script para compilarlo con Vivado en modo
   batch para la Nexys 4 o la Nexys 4 DDR. Los pines proceden de los XDC oficiales de Digilent.
-- 74 tests con placa y cámara simuladas, más la simulación del banco de pruebas en GHDL si está
-  instalado (uno solo se ejecuta si se aporta un `.bit` real).
+- 76 tests con placa y cámara simuladas, más la simulación del banco de pruebas en GHDL si está
+  instalado (uno solo se ejecuta si se aporta un `.bit` real). Los tests no leen el `lab.toml`
+  del servidor.
+- Verificación con hardware real (Nexys 4, openFPGALoader v1.2.0, Vivado 2022.2): carga en SRAM
+  en unos 5 s, el contador y los interruptores se ven en la foto, un número de serie FTDI falso
+  hace fallar la carga sin tocar otras placas y se rechaza un `.bit` de la Zybo.
 
 ### Pendiente
 
-- Verificar la etapa 1 con la Nexys 4 y la cámara reales y ajustar lo que haga falta (puede
-  hacerse con [Claude Code en el servidor](docs/trabajar-con-claude-code.md)).
+- Verificar también la Nexys 4 DDR con hardware real cuando esté disponible (la etapa 1 se ha
+  verificado solo con la Nexys 4).
 - Etapa 2: compilar el VHDL de Digital en el servidor con Vivado 2022.2
   (`/tools/Xilinx/Vivado/2022.2`), backend (FastAPI) y vídeo MJPEG.
 - Etapas 3 a 5 (ver tabla) y las decisiones abiertas (ver "Decisiones de diseño").

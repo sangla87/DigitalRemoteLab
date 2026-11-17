@@ -113,6 +113,10 @@ avanza unas 3 veces por segundo, y en `LED[15:8]` el valor de los interruptores 
 | h | Con un `ftdi_serial` falso en `lab.toml`, repite (f) | Debe **fallar** (no encuentra el dispositivo) en lugar de programar otra placa. |
 | i | `drl info` con el `.bit` de una Zybo (`Contadores_Bitstream.bit`) | Debe **rechazarlo**: es para `7z010`, la placa usa `7a100t`. |
 
+Si no tienes a mano el `.bit` de una Zybo para (i), sirve cualquier `.bit` generado para la
+parte `xc7z010clg400-1` (por ejemplo, el diseño de prueba sintetizado para esa parte en un
+directorio de `build/`): solo se usa con `drl info` y nunca se carga en la placa.
+
 La comprobación (h) valida que `--ftdi-serial` se combina bien con `-b <placa>`, que es lo que
 usaremos para distinguir varias placas en la etapa 4. Si `openFPGALoader` necesitara otro
 argumento para tu cable, se añade en `extra_args` de la placa sin tocar código.
@@ -131,6 +135,7 @@ argumento para tu cable, se añade en `extra_args` de la placa sin tocar código
 | `LIBUSB_ERROR_ACCESS` o "Permission denied" | Falta la regla udev, o el usuario no está en `plugdev` (reinicia la sesión). |
 | No detecta ninguna FPGA | Placa apagada o cable solo de carga; prueba otro cable y el interruptor de la placa. |
 | `drl snapshot` falla al abrir la cámara | Ruta incorrecta o usuario fuera del grupo `video`. Usa `drl devices` o `v4l2-ctl --list-devices`. |
+| Avisos `Corrupt JPEG data: N extraneous bytes...` al hacer una foto | Los emite libjpeg con algunas webcams (vistos con una Logitech `046d:0825`); son inofensivos si la foto sale bien. |
 | Imagen oscura o borrosa | Sube `warmup_frames` en `[boards.camera]` o revisa la iluminación. |
 | El diseño carga pero no se mueve nada | Pines de otra placa: usa `nexys4.xdc` en la Nexys 4 y `nexys4ddr.xdc` en la 4 DDR. |
 | Vivado falla al generar el `.bit` | Guarda la salida de la ventana (informe de timing, DRC) y envíala. |
