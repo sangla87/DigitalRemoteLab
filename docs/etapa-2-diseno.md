@@ -32,7 +32,11 @@ circuito, más entidades auxiliares en el mismo fichero (p. ej. `DIG_CounterPres
 
 - Debe existir la entidad `main`; los puertos son `std_logic` de 1 bit.
 - Nombres de entrada permitidos: `CLK`, `SW0..SW15`, `BTN0..BTN4` (según la placa).
-- Nombres de salida permitidos: `LED0..LED15` (y, más adelante, segmentos/ánodos del display).
+- Nombres de salida permitidos: `LED0..LED15`, y los del display de 7 segmentos: `SEG_A..SEG_G`,
+  `SEG_DP` y `AN0..AN7` (se admiten 1, 2, 4 u 8 dígitos). El alumno multiplexa él mismo los dígitos;
+  el envoltorio solo los conecta a los pines. Los ánodos que el diseño no use se dejan apagados.
+  La polaridad (en la placa, activos a nivel bajo) se invierte en el envoltorio, de modo que en
+  Digital `1` signifique «encendido».
 - Cualquier otro nombre se rechaza con un mensaje que lista los válidos.
 - Solo se admiten las librerías `ieee.std_logic_1164`, `ieee.numeric_std`,
   `ieee.std_logic_unsigned` y `ieee.std_logic_arith`. Se rechaza todo lo demás (p. ej. `std.textio`,
@@ -56,9 +60,14 @@ sale limpio, sin *glitches*, y Vivado lo trata como reloj generado
 
 | Modo | Reloj entregado a `CLK` | Implementación |
 |---|---|---|
+| `1khz` | 1 kHz | alterna cada 50 000 ciclos |
 | `1hz` | 1 Hz | alterna cada 50 000 000 ciclos |
 | `10hz` | 10 Hz | alterna cada 5 000 000 ciclos |
 | `manual` | un flanco por pulso | pulso del botón virtual, sincronizado y con detección de flanco |
+
+El modo de 1 kHz existe para la práctica de multiplexado de displays: el alumno multiplexa los
+dígitos con 1 kHz y diseña sus propios divisores (contador hexadecimal de módulo 16, etc.) para
+bajar a 1 Hz, por ejemplo para un contador de segundos de dos dígitos.
 
 En la etapa 2 el modo se fija **en compilación** con un `generic` (el alumno lo elige al subir el
 VHDL). En la etapa 3 pasará a ser en ejecución, a través de los controles virtuales.
@@ -137,12 +146,14 @@ Pendiente de confirmar antes de la etapa 3:
 - Envoltorio con reloj lento para que el alumno no genere relojes: 1 Hz, 10 Hz y pulso manual.
 - El modo de reloj en la etapa 2 se fija en compilación; en la 3, en ejecución.
 - Vivado para la síntesis; `openFPGALoader` para cargar (solo SRAM).
-- Controles virtuales por UART (a confirmar).
+- Controles virtuales por UART (confirmado el enfoque; faltan las comprobaciones de la sección 6bis).
+- Displays de 7 segmentos en la etapa 2, con multiplexado hecho por el alumno y reloj de 1 kHz.
+  Opcional más adelante: que el envoltorio multiplexe (`DIG0..DIG7` de 4 bits) para quien no
+  quiera hacerlo.
+- Cámara: configuración opcional en `lab.toml` (50 Hz, exposición, ganancia). Con el multiplexado a
+  1 kHz, una exposición fija evita bandas en los displays.
 
 ## 10. Preguntas abiertas
 
-- ¿Se acepta que el alumno no pueda usar `CLK` de 100 MHz en ningún caso?
 - ¿Límite razonable de tiempo de compilación (propuesta: 10 min) y de tamaño del VHDL?
-- ¿Los displays de 7 segmentos entran en la etapa 2 o en la 3? Requieren multiplexación en el
-  envoltorio si Digital exporta los segmentos como señales sueltas.
 - Cámara: ¿configuración opcional en `lab.toml` (50 Hz, exposición, ganancia)?

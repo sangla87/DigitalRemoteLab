@@ -191,7 +191,7 @@ docs/                   documentación y listas de verificación
   lista y documentarla para los alumnos.
 - **Reloj (decidido).** El oscilador va a 100 MHz: un contador conectado directamente a `CLK`
   parecería congelado en la cámara. Un envoltorio (`drl_top`) entrega al diseño del alumno un reloj
-  sin *glitches* de 1 Hz, de 10 Hz o pulsos manuales desde un botón virtual; el alumno no genera
+  sin *glitches* de 1 kHz (para multiplexar displays), 1 Hz, 10 Hz o pulsos manuales desde un botón virtual; el alumno no genera
   relojes. Detalle en [docs/etapa-2-diseno.md](docs/etapa-2-diseno.md).
 - **Controles virtuales.** Los pulsadores e interruptores físicos de la placa van cableados a la
   FPGA, por lo que los virtuales actuarán a través de la UART de la placa (el servidor no tiene GPIO): un
