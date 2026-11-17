@@ -55,7 +55,7 @@ def test_env_var_selects_file(tmp_path, monkeypatch):
 def test_example_file_in_repo_is_valid():
     config = load_config("config/lab.example.toml")
     assert config.board().id == "nexys1"
-    assert config.board().ofl_board == "nexys4ddr"
+    assert config.board().ofl_board == "nexys_a7_100"
 
 
 def test_unknown_key_is_rejected():

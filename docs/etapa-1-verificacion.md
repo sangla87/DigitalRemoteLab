@@ -43,9 +43,11 @@ Comprueba que tu placa está en su lista de placas soportadas:
 openFPGALoader --list-boards | grep -i nexys
 ```
 
-Debería aparecer `nexys4` y/o `nexys4ddr`. Si el nombre de tu placa no aparece, anota la salida y
-la versión (`git -C openFPGALoader log -1 --oneline`): se ajusta con `ofl_board` en `lab.toml`
-sin tocar código.
+Deberían aparecer `nexys_a7_50` y `nexys_a7_100` (no hay entradas `nexys4` ni `nexys4ddr`). Tanto
+la Nexys 4 DDR como la Nexys 4 usan `nexys_a7_100`: llevan la misma FPGA (XC7A100T) y el mismo
+JTAG, y solo se carga en SRAM. Si no aparece ni siquiera `nexys_a7_100`, la versión de
+`openFPGALoader` es demasiado antigua: anota la salida de `openFPGALoader -V` y vuelve a
+compilarla desde el repositorio (no la instales con `apt`).
 
 ## 2. Instalar el proyecto y los permisos
 
@@ -104,7 +106,7 @@ avanza unas 3 veces por segundo, y en `LED[15:8]` el valor de los interruptores 
 | a | `drl doctor` | `[OK]` en openFPGALoader, placa USB, vídeo y OpenCV. Vivado debe aparecer `[OK]`. |
 | b | `drl boards` | La placa configurada, con su modelo, `-b` de openFPGALoader y número de serie. |
 | c | `drl info build/nexys4ddr/test_board.bit` | Diseño `test_board`, parte `7a100t...` y "Bitstream válido". |
-| d | `openFPGALoader -b nexys4ddr --detect` | Detecta una FPGA `xc7a100t`. |
+| d | `openFPGALoader -b nexys_a7_100 --detect` | Detecta una FPGA `xc7a100t`. |
 | e | `drl detect` | Lo mismo, a través del proyecto. |
 | f | `drl program build/nexys4ddr/test_board.bit --snapshot foto.jpg` | "Diseño 'test_board' cargado en N s"; los LEDs inferiores cuentan en binario y `foto.jpg` los muestra. |
 | g | Mueve los interruptores SW0..SW7 y repite `drl snapshot -o sw.jpg` | Los LED[15:8] de la foto reflejan los interruptores. |

@@ -33,14 +33,18 @@ MODELS: dict[str, BoardModel] = {
         BoardModel(
             key="nexys4",
             name="Digilent Nexys 4",
-            ofl_board="nexys4",
+            ofl_board="nexys_a7_100",
             part_prefix="7a100t",
-            notes="No es intercambiable con la Nexys 4 DDR: los pines son distintos.",
+            notes=(
+                "Sin entrada propia en openFPGALoader: se usa la de la Nexys A7-100T, que lleva "
+                "la misma FPGA y el mismo JTAG (solo se carga en SRAM). Sus pines NO son los "
+                "de la Nexys 4 DDR."
+            ),
         ),
         BoardModel(
             key="nexys4ddr",
             name="Digilent Nexys 4 DDR / Nexys A7-100T",
-            ofl_board="nexys4ddr",
+            ofl_board="nexys_a7_100",
             part_prefix="7a100t",
             notes="Misma FPGA que la Nexys 4, pero con otros pines.",
         ),

@@ -13,12 +13,13 @@ def test_catalog_has_expected_models():
     assert MODELS["zybo_z7_10"].part_prefix == "7z010"
     assert MODELS["nexys4"].part_prefix == "7a100t"
     assert MODELS["nexys4ddr"].part_prefix == "7a100t"
-    assert MODELS["nexys4"].ofl_board != MODELS["nexys4ddr"].ofl_board
+    # openFPGALoader no distingue entre ambas: las dos usan la entrada de la Nexys A7-100T.
+    assert MODELS["nexys4"].ofl_board == MODELS["nexys4ddr"].ofl_board == "nexys_a7_100"
 
 
 def test_board_resolves_openfpgaloader_name_and_part_from_model():
     board = BoardConfig(id="a", model="nexys4ddr")
-    assert board.ofl_board == "nexys4ddr"
+    assert board.ofl_board == "nexys_a7_100"
     assert board.part_prefix == "7a100t"
     assert "Nexys 4 DDR" in board.model_name
 
@@ -67,7 +68,7 @@ def test_openfpgaloader_command_uses_the_board_model(tmp_path):
 
     prog = OpenFPGALoaderProgrammer(LabConfig(), runner=runner)
     prog.program(BoardConfig(id="a", model="nexys4ddr", ftdi_serial="S1"), tmp_path / "x.bit")
-    assert calls[0][:5] == ["openFPGALoader", "-b", "nexys4ddr", "--ftdi-serial", "S1"]
+    assert calls[0][:5] == ["openFPGALoader", "-b", "nexys_a7_100", "--ftdi-serial", "S1"]
 
 
 def make_lab(boards):
