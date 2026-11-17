@@ -1,6 +1,10 @@
+from pathlib import Path
+
 import pytest
 
 from digitalremotelab.config import ConfigError, LabConfig, load_config, parse_config
+
+REPO = Path(__file__).resolve().parent.parent
 
 
 def test_defaults_when_no_file(monkeypatch, tmp_path):
@@ -53,7 +57,7 @@ def test_env_var_selects_file(tmp_path, monkeypatch):
 
 
 def test_example_file_in_repo_is_valid():
-    config = load_config("config/lab.example.toml")
+    config = load_config(REPO / "config" / "lab.example.toml")
     assert config.board().id == "nexys1"
     assert config.board().ofl_board == "nexys_a7_100"
 

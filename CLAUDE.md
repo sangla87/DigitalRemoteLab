@@ -7,7 +7,7 @@ exportan VHDL y probarán sus circuitos en una placa real vista por cámara. Tra
 ## Estado
 
 Ver el README ("Estado del proyecto"). Etapa 1 (cargar un `.bit` y fotografiar la placa, sin web)
-escrita y probada con hardware simulado; falta verificarla con hardware real.
+hecha y verificada con una Nexys 4 real (17/11/2026). Siguiente: etapa 2.
 
 ## Comandos
 

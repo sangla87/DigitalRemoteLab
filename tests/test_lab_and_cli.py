@@ -104,3 +104,12 @@ def test_cli_doctor_runs_and_reports(capsys):
     out = capsys.readouterr().out
     assert "openFPGALoader" in out
     assert code in (0, 1)
+
+
+def test_cli_ignores_server_lab_toml_outside_the_test(make_bit, capsys):
+    """Regresión: con un config/lab.toml de Nexys 4 en el directorio del proyecto, los tests de la
+    CLI usaban esa placa y rechazaban el .bit de la Zybo. Los tests deben usar su propia config."""
+    from digitalremotelab.config import load_config
+
+    assert [b.model for b in load_config().boards] == [LabConfig().boards[0].model]
+    assert main(["--fake", "info", str(make_bit())]) == 0

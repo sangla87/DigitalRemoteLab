@@ -1,9 +1,26 @@
+import os
 import struct
 from pathlib import Path
 
 import pytest
 
 from digitalremotelab.bitstream import MAGIC, SYNC_WORD
+from digitalremotelab.config import ENV_VAR
+
+
+@pytest.fixture(autouse=True)
+def isolated_from_server_config(tmp_path_factory, monkeypatch):
+    """Aísla los tests del lab.toml del servidor.
+
+    `drl` busca la configuración en DRL_CONFIG, ./lab.toml y ./config/lab.toml. En el servidor
+    del laboratorio existe un config/lab.toml real (p. ej. una Nexys 4) y, sin este aislamiento,
+    los tests de la CLI lo usaban y rechazaban sus .bit sintéticos de la Zybo.
+    """
+    sample = os.environ.get("DRL_SAMPLE_BIT")
+    if sample:
+        monkeypatch.setenv("DRL_SAMPLE_BIT", str(Path(sample).resolve()))
+    monkeypatch.delenv(ENV_VAR, raising=False)
+    monkeypatch.chdir(tmp_path_factory.mktemp("cwd"))
 
 
 def build_bit(
