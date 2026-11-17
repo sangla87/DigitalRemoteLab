@@ -52,3 +52,21 @@ def test_vhdl_testbench_passes_in_ghdl(tmp_path):
     result = ghdl("-r", "tb_test_board", sim_options=["--stop-time=2us"])
     assert result.returncode == 0, result.stdout + result.stderr
     assert "banco de pruebas superado" in result.stdout + result.stderr
+
+
+@pytest.mark.skipif(shutil.which("ghdl") is None, reason="GHDL no está instalado")
+def test_clock_gen_testbench_passes_in_ghdl(tmp_path):
+    wrapper = HDL.parent / "wrapper"
+    base = ["ghdl", "--std=08", f"--workdir={tmp_path}"]
+
+    def run(command, *args):
+        cmd = [base[0], command, *base[1:], *args]
+        return subprocess.run(cmd, capture_output=True, text=True, check=False)
+
+    files = [str(wrapper / "clock_gen.vhd"), str(wrapper / "tb_clock_gen.vhd")]
+    assert run("-a", *files).returncode == 0
+    assert run("-e", "tb_clock_gen").returncode == 0
+    result = run("-r", "tb_clock_gen", "--stop-time=20us")
+    output = result.stdout + result.stderr
+    assert result.returncode == 0, output
+    assert "banco de pruebas superado" in output
