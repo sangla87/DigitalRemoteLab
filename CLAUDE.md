@@ -7,7 +7,7 @@ exportan VHDL y probarán sus circuitos en una placa real vista por cámara. Tra
 ## Estado
 
 Ver el README ("Estado del proyecto"). Etapa 1 (cargar un `.bit` y fotografiar la placa, sin web)
-hecha y verificada con una Nexys 4 real (17/11/2026). Etapa 2 en diseño: ver `docs/etapa-2-diseno.md` (diseño aprobado; hecho: `portcheck` y `clock_gen`; `pins` y `wrapper`; faltan `VivadoCompiler` y el backend web).
+hecha y verificada con una Nexys 4 real (17/11/2026). Etapa 2 en diseño: ver `docs/etapa-2-diseno.md` (diseño aprobado; hecho: `portcheck` y `clock_gen`; `pins`, `wrapper` y `compiler` (escritos aquí; falta verificar `VivadoCompiler` con Vivado real: `docs/etapa-2-verificacion.md`); falta el backend web).
 
 ## Comandos
 
@@ -30,6 +30,7 @@ drl doctor | drl devices | drl boards | drl info X.bit | drl program X.bit --sna
 - `portcheck.py`: valida el VHDL de Digital (entidad `main`, puertos permitidos, librerías).
 - `pins.py`: pines por placa de los puertos del alumno (verificados contra los XDC maestros de Digilent).
 - `wrapper.py`: genera `drl_top.vhd` y el XDC para un diseño validado.
+- `compiler.py`: `VivadoCompiler` (batch, un directorio por compilación, tiempo máximo) y `FakeCompiler`.
 - `hdl/wrapper/`: `clock_gen.vhd` (reloj 1 kHz / 1 Hz / 10 Hz / manual) y su testbench GHDL.
 - `hdl/test_board/`: diseño de prueba (VHDL, XDC por placa) y `scripts/build_test_bitstream.tcl`.
 

@@ -18,6 +18,7 @@ class BoardModel:
     name: str  # nombre legible
     ofl_board: str  # valor de `-b` de openFPGALoader
     part_prefix: str  # prefijo de la parte en la cabecera del .bit (sin "xc")
+    vivado_part: str = ""  # parte completa para Vivado, p. ej. xc7a100tcsg324-1
     notes: str = ""
 
 
@@ -29,12 +30,14 @@ MODELS: dict[str, BoardModel] = {
             name="Digilent Zybo Z7-10",
             ofl_board="zybo_z7_10",
             part_prefix="7z010",
+            vivado_part="xc7z010clg400-1",
         ),
         BoardModel(
             key="nexys4",
             name="Digilent Nexys 4",
             ofl_board="nexys_a7_100",
             part_prefix="7a100t",
+            vivado_part="xc7a100tcsg324-1",
             notes=(
                 "Sin entrada propia en openFPGALoader: se usa la de la Nexys A7-100T, que lleva "
                 "la misma FPGA y el mismo JTAG (solo se carga en SRAM). Sus pines NO son los "
@@ -46,6 +49,7 @@ MODELS: dict[str, BoardModel] = {
             name="Digilent Nexys 4 DDR / Nexys A7-100T",
             ofl_board="nexys_a7_100",
             part_prefix="7a100t",
+            vivado_part="xc7a100tcsg324-1",
             notes="Misma FPGA que la Nexys 4, pero con otros pines.",
         ),
     )

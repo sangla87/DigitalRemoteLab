@@ -58,13 +58,24 @@ intercambiables. Una placa que no esté en el catálogo puede definirse en `lab.
   en unos 5 s, el contador y los interruptores se ven en la foto, un número de serie FTDI falso
   hace fallar la carga sin tocar otras placas y se rechaza un `.bit` de la Zybo.
 
+### Lo que hay hecho (etapa 2, sin web todavía)
+
+- `portcheck.py`: valida el VHDL de Digital (entidad `main`, puertos y librerías permitidos).
+- `hdl/wrapper/clock_gen.vhd` y `wrapper.py`: envoltorio `drl_top` con reloj de 1 kHz, 1 Hz, 10 Hz o
+  manual, entradas sincronizadas, y segmentos y ánodos con polaridad corregida.
+- `pins.py`: pines de la Nexys 4 y la Nexys 4 DDR verificados contra los XDC maestros de Digilent.
+- `compiler.py` y `drl compile`: VHDL de Digital a `.bit` con Vivado en modo batch (probado solo
+  con un Vivado simulado; falta la verificación con el real, ver
+  [docs/etapa-2-verificacion.md](docs/etapa-2-verificacion.md)).
+
 ### Pendiente
 
 - Verificar también la Nexys 4 DDR con hardware real cuando esté disponible (la etapa 1 se ha
   verificado solo con la Nexys 4).
-- Etapa 2 (en diseño, ver [docs/etapa-2-diseno.md](docs/etapa-2-diseno.md)): validar el VHDL de
-  Digital, envoltorio con reloj lento, compilar con Vivado 2022.2
-  (`/tools/Xilinx/Vivado/2022.2`), backend (FastAPI) y vídeo MJPEG.
+- Etapa 2 ([diseño](docs/etapa-2-diseno.md)): verificar `drl compile` con Vivado real, y escribir el
+  backend (FastAPI) con vídeo MJPEG y la página de subida.
+- Acceso de los alumnos sin VPN ni acceso directo al servidor (proxy inverso o máquina
+  intermedia, y LTI 1.3 desde el aula virtual): a consultar con informática.
 - Etapas 3 a 5 (ver tabla) y las decisiones abiertas (ver "Decisiones de diseño").
 - Estudiar, como etapa opcional y aparte, un flujo abierto (Yosys + nextpnr-xilinx, vía openXC7)
   para Artix-7 que evite depender de Vivado.

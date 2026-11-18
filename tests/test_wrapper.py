@@ -226,3 +226,20 @@ def test_generated_wrapper_simulates_with_student_design(tmp_path):
     output = result.stdout + result.stderr
     assert result.returncode == 0, output
     assert "banco de pruebas superado" in output
+
+
+@pytest.mark.skipif(shutil.which("ghdl") is None, reason="GHDL no está instalado")
+@pytest.mark.parametrize("mode", ["1khz", "1hz", "10hz", "manual"])
+def test_example_and_wrapper_analyze_in_vhdl93_like_vivado(tmp_path, mode):
+    """Vivado lee `read_vhdl` en VHDL-93 por defecto: el envoltorio y el ejemplo deben valer."""
+    source = (ROOT / "examples" / "contador.vhd").read_text()
+    w = generate_wrapper(check_vhdl(source), "nexys4", mode)
+    (tmp_path / "drl_top.vhd").write_text(w.vhdl)
+    files = [
+        str(ROOT / "examples" / "contador.vhd"),
+        str(HDL / "wrapper" / "clock_gen.vhd"),
+        str(tmp_path / "drl_top.vhd"),
+    ]
+    cmd = ["ghdl", "-a", "--std=93c", "--ieee=synopsys", f"--workdir={tmp_path}", *files]
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
