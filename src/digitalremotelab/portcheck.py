@@ -31,6 +31,7 @@ OUTPUTS = frozenset(
     }
 )
 
+RESERVED_ENTITIES = frozenset({"drl_top", "clock_gen"})
 ALLOWED_LIBRARIES = frozenset({"ieee", "work", "std"})
 ALLOWED_IEEE_PACKAGES = frozenset(
     {"std_logic_1164", "numeric_std", "std_logic_unsigned", "std_logic_arith", "numeric_bit"}
@@ -128,6 +129,9 @@ def check_vhdl(source: str | bytes) -> VhdlInfo:
         problems.append(f"Uso de una primitiva o librería de Xilinx no permitida: «{m}».")
     if FORBIDDEN_ATTRIBUTES.search(text):
         problems.append("No se permiten atributos de Vivado (pines, buffers, jerarquía...).")
+
+    for reserved in sorted(RESERVED_ENTITIES & set(re.findall(r"\bentity\s+(\w+)\s+is\b", text))):
+        problems.append(f"El nombre de entidad «{reserved}» está reservado.")
 
     m = re.search(r"\bentity\s+main\s+is\b(.*?)\bend\b", text, re.S)
     ports: list[Port] = []

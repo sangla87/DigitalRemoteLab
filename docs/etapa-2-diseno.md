@@ -72,6 +72,14 @@ bajar a 1 Hz, por ejemplo para un contador de segundos de dos dígitos.
 En la etapa 2 el modo se fija **en compilación** con un `generic` (el alumno lo elige al subir el
 VHDL). En la etapa 3 pasará a ser en ejecución, a través de los controles virtuales.
 
+### Botones y pines
+
+`BTN0..BTN4` son BTNC, BTNU, BTNL, BTNR y BTND. En modo `manual`, de momento el pulso lo da el botón
+físico `BTN0` (el pulso virtual llegará con la UART en la etapa 3), así que el diseño no puede usar
+`BTN0` como entrada. Los pines de cada placa están en `pins.py`, verificados contra los XDC maestros
+de Digilent de la Nexys 4 (rev. B) y la Nexys 4 DDR (rev. C): los de display y botones **no**
+coinciden entre ellas. En la DDR, SW8 y SW9 funcionan a 1,8 V.
+
 ### Entradas
 
 Los interruptores y botones pasan por sincronizadores de 2 flip-flops antes de llegar a `main`.
