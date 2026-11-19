@@ -19,6 +19,7 @@ from digitalremotelab.errors import DRLError
 from digitalremotelab.lab import Lab
 from digitalremotelab.programmer import ProgramResult
 from digitalremotelab.usb import list_cameras, list_ftdi_devices
+from digitalremotelab.wrapper import CLOCK_MODES, DEFAULT_CLOCK_MODE
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -52,9 +53,27 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Segundos de espera antes de la foto (por defecto 1).",
     )
 
+    p = sub.add_parser("compile", help="Compila un VHDL de Digital a .bit con Vivado.")
+    p.add_argument("vhdl")
+    p.add_argument("-b", "--board")
+    p.add_argument(
+        "--clock",
+        default=DEFAULT_CLOCK_MODE,
+        choices=sorted(CLOCK_MODES),
+        help="Reloj que recibe el diseño (por defecto 1hz).",
+    )
+    p.add_argument("-o", "--output", metavar="FICHERO", help="Copia aquí el .bit resultante.")
+    p.add_argument("--program", action="store_true", help="Carga el .bit en la placa si sale bien.")
+    p.add_argument("--snapshot", metavar="FICHERO", help="Con --program: foto tras cargar.")
+    p.add_argument("--settle", type=float, default=1.0)
+
     p = sub.add_parser("snapshot", help="Guarda una foto de la placa.")
     p.add_argument("-b", "--board")
     p.add_argument("-o", "--output", help="Fichero de salida (por defecto, con fecha y hora).")
+
+    p = sub.add_parser("serve", help="Arranca la web del laboratorio (etapa 2).")
+    p.add_argument("--host", default="127.0.0.1", help="Por defecto solo local: 127.0.0.1.")
+    p.add_argument("--port", type=int, default=8000)
 
     sub.add_parser("boards", help="Muestra las placas configuradas y los modelos soportados.")
     sub.add_parser(
@@ -109,6 +128,58 @@ def _cmd_program(lab: Lab, args: argparse.Namespace) -> int:
         time.sleep(max(args.settle, 0.0))
         path = _write_snapshot(lab, args.board, args.snapshot)
         print(f"Foto guardada en {path}")
+    return 0
+
+
+def _cmd_compile(lab: Lab, args: argparse.Namespace) -> int:
+    path = Path(args.vhdl)
+    if not path.is_file():
+        print(f"Error: No existe el fichero '{path}'.", file=sys.stderr)
+        return 1
+    vhdl = path.read_text(encoding="utf-8", errors="replace")
+    if args.program:
+        result, info, programmed = lab.compile_and_program(vhdl, args.board, args.clock)
+    else:
+        result, info, programmed = lab.compile(vhdl, args.board, args.clock), None, None
+    if not result.ok:
+        print("Error: la compilación ha fallado.", file=sys.stderr)
+        for line in result.errors:
+            print(f"  {line}", file=sys.stderr)
+        print(f"Registro completo: {result.log_path}", file=sys.stderr)
+        return 1
+    print(f"Compilado en {result.duration_s:.0f} s: {result.bitstream}")
+    if args.output:
+        shutil.copyfile(result.bitstream, args.output)
+        print(f"Copiado a {args.output}")
+    if programmed is not None:
+        if not programmed.ok:
+            _print_failure(programmed)
+            return 1
+        print(f"Diseño '{info.design_name}' cargado en {programmed.duration_s:.1f} s.")
+        if args.snapshot:
+            time.sleep(max(args.settle, 0.0))
+            print(f"Foto guardada en {_write_snapshot(lab, args.board, args.snapshot)}")
+    return 0
+
+
+def _cmd_serve(lab: Lab, args: argparse.Namespace) -> int:
+    try:
+        import uvicorn
+
+        from digitalremotelab.web.app import create_app
+    except ImportError:
+        print(
+            "Error: faltan las dependencias web: pip install 'digitalremotelab[web]'",
+            file=sys.stderr,
+        )
+        return 1
+    from digitalremotelab.camera import FakeCamera, OpenCVCamera
+    from digitalremotelab.stream import CameraStream
+
+    board = lab.config.board()
+    camera = FakeCamera() if args.fake else OpenCVCamera(board.camera, keep_open=True)
+    app = create_app(lab, CameraStream(camera))
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
     return 0
 
 
@@ -215,6 +286,8 @@ _COMMANDS = {
     "info": _cmd_info,
     "detect": _cmd_detect,
     "program": _cmd_program,
+    "compile": _cmd_compile,
+    "serve": _cmd_serve,
     "snapshot": _cmd_snapshot,
     "boards": _cmd_boards,
     "devices": _cmd_devices,

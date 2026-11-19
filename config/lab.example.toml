@@ -9,6 +9,9 @@ openfpgaloader = "openFPGALoader"
 model = "nexys4ddr"
 program_timeout_s = 60
 vivado_dir = "/tools/Xilinx/Vivado/2022.2"
+# Carpeta de las compilaciones (una subcarpeta por compilación) y tiempo máximo de cada una.
+work_dir = "work"
+compile_timeout_s = 900
 
 [[boards]]
 id = "nexys1"

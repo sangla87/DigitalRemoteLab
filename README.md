@@ -15,8 +15,8 @@ La placa es configurable por modelo (`config/lab.toml`). Cada modelo define cóm
 
 | Modelo (`model`) | Placa | FPGA | Estado |
 |---|---|---|---|
-| `nexys4ddr` | Digilent Nexys 4 DDR / Nexys A7-100T | Artix-7 XC7A100T | Pendiente de verificar con hardware |
-| `nexys4` | Digilent Nexys 4 | Artix-7 XC7A100T | Pendiente de verificar con hardware |
+| `nexys4ddr` | Digilent Nexys 4 DDR / Nexys A7-100T | Artix-7 XC7A100T | Pendiente de verificar con hardware (mismo FPGA y JTAG que la Nexys 4) |
+| `nexys4` | Digilent Nexys 4 | Artix-7 XC7A100T | Verificada con hardware real (etapa 1) |
 | `zybo_z7_10` | Digilent Zybo Z7-10 | Zynq-7010 | Probado solo con un `.bit` real y hardware simulado |
 
 La Nexys 4 y la Nexys 4 DDR llevan la misma FPGA pero **tienen pines distintos**: sus `.xdc` no son
@@ -29,8 +29,8 @@ intercambiables. Una placa que no esté en el catálogo puede definirse en `lab.
 |---|---|---|
 | 0 | Decisiones de diseño | Hecha (ver más abajo) |
 | 1 | Validación de `.bit`, carga con `openFPGALoader`, captura de cámara, CLI `drl`, placa configurable, diseño de prueba para la Nexys | Hecha. Verificada el 17/11/2026 con una Nexys 4 y una webcam reales: todas las [comprobaciones](docs/etapa-1-verificacion.md) correctas |
-| 2 | Compilación en el servidor (Vivado en modo batch desde el VHDL de Digital) y backend web con vídeo en vivo | Pendiente |
-| 3 | Interruptores y pulsadores virtuales (GPIO a Pmod), `.xdc` plantilla, solución para el reloj | Pendiente |
+| 2 | Compilación en el servidor (Vivado en modo batch desde el VHDL de Digital) y backend web con vídeo en vivo | En diseño: ver [docs/etapa-2-diseno.md](docs/etapa-2-diseno.md) |
+| 3 | Interruptores y pulsadores virtuales (por UART del FT2232, a confirmar), reloj del alumno en ejecución | Pendiente |
 | 4 | Turnos, sesiones, tiempo máximo, reinicio de la placa al terminar y varias placas | Pendiente |
 | 5 | Despliegue estable (servicio, HTTPS) y acceso restringido a alumnos (VPN o aula virtual) | Pendiente |
 
@@ -58,12 +58,39 @@ intercambiables. Una placa que no esté en el catálogo puede definirse en `lab.
   en unos 5 s, el contador y los interruptores se ven en la foto, un número de serie FTDI falso
   hace fallar la carga sin tocar otras placas y se rechaza un `.bit` de la Zybo.
 
+### Lo que hay hecho (etapa 2, sin web todavía)
+
+- `portcheck.py`: valida el VHDL de Digital (entidad `main`, puertos y librerías permitidos).
+- `hdl/wrapper/clock_gen.vhd` y `wrapper.py`: envoltorio `drl_top` con reloj de 1 kHz, 1 Hz, 10 Hz o
+  manual, entradas sincronizadas, y segmentos y ánodos con polaridad corregida.
+- `pins.py`: pines de la Nexys 4 y la Nexys 4 DDR verificados contra los XDC maestros de Digilent.
+- `compiler.py` y `drl compile`: VHDL de Digital a `.bit` con Vivado en modo batch (probado solo
+  con un Vivado simulado; falta la verificación con el real, ver
+  [docs/etapa-2-verificacion.md](docs/etapa-2-verificacion.md)).
+
+- `jobs.py`, `stream.py`, `web/` y `drl serve`: web con subida de VHDL o `.bit`, cola de un trabajo
+  a la vez (compila, carga y muestra el estado), foto y vídeo MJPEG en directo. Sin autenticación
+  todavía: escucha solo en `127.0.0.1` por defecto. Probada con placa, cámara y Vivado simulados.
+
+#### Arrancar la web
+
+```bash
+pip install -e ".[web,camera,dev]"
+drl serve                 # http://127.0.0.1:8000 (solo local)
+drl --fake serve          # con placa, cámara y compilador simulados, para probar la interfaz
+```
+
+Desde otro equipo, de momento, con un túnel SSH: `ssh -L 8000:127.0.0.1:8000 servidor` y abre
+`http://127.0.0.1:8000`. No uses `--host 0.0.0.0` sin un proxy delante: aún no hay autenticación.
+
 ### Pendiente
 
 - Verificar también la Nexys 4 DDR con hardware real cuando esté disponible (la etapa 1 se ha
   verificado solo con la Nexys 4).
-- Etapa 2: compilar el VHDL de Digital en el servidor con Vivado 2022.2
-  (`/tools/Xilinx/Vivado/2022.2`), backend (FastAPI) y vídeo MJPEG.
+- Etapa 2 ([diseño](docs/etapa-2-diseno.md)): verificar `drl compile` y `drl serve` con Vivado,
+  placa y cámara reales (ver [docs/etapa-2-verificacion.md](docs/etapa-2-verificacion.md)).
+- Acceso de los alumnos sin VPN ni acceso directo al servidor (proxy inverso o máquina
+  intermedia, y LTI 1.3 desde el aula virtual): a consultar con informática.
 - Etapas 3 a 5 (ver tabla) y las decisiones abiertas (ver "Decisiones de diseño").
 - Estudiar, como etapa opcional y aparte, un flujo abierto (Yosys + nextpnr-xilinx, vía openXC7)
   para Artix-7 que evite depender de Vivado.
@@ -78,7 +105,7 @@ Servidor web ── turnos ── compilación Vivado ──► .bit
    │                                              │
    │  controles virtuales (WebSocket)             ▼
    ▼                                      openFPGALoader (JTAG)
-GPIO ──► pines Pmod de la placa ◄──────────── Placa FPGA
+UART (FT2232, canal B) ──► receptor en la placa ◄── Placa FPGA
                                                   ▲
 Vídeo en vivo (MJPEG) ◄───────── webcam ──────────┘
 ```
@@ -188,11 +215,13 @@ docs/                   documentación y listas de verificación
   tenga el circuito (en el ejemplo: `SW0`, `SW1`, `SW2`, `CLK`, `LED0`..`LED3`). Un `.xdc`
   plantilla asignará pines por nombre (`SW0..15`, `BTN0..4`, `LED0..15`, `CLK`...). Hay que fijar la
   lista y documentarla para los alumnos.
-- **Reloj.** El oscilador va a 100 MHz (125 MHz en la Zybo): un contador conectado directamente a
-  `CLK` parecería congelado en la cámara. Opciones: pulsos de reloj manuales desde un botón
-  virtual, un reloj dividido (1 o 2 Hz) en un envoltorio, o un selector entre ambos.
+- **Reloj (decidido).** El oscilador va a 100 MHz: un contador conectado directamente a `CLK`
+  parecería congelado en la cámara. Un envoltorio (`drl_top`) entrega al diseño del alumno un reloj
+  sin *glitches* de 1 kHz (para multiplexar displays), 1 Hz, 10 Hz o pulsos manuales desde un botón virtual; el alumno no genera
+  relojes. Detalle en [docs/etapa-2-diseno.md](docs/etapa-2-diseno.md).
 - **Controles virtuales.** Los pulsadores e interruptores físicos de la placa van cableados a la
-  FPGA, por lo que los virtuales actuarán a través de GPIO del servidor conectados a pines Pmod.
+  FPGA, por lo que los virtuales actuarán a través de la UART de la placa (el servidor no tiene GPIO): un
+  receptor en el envoltorio actualiza interruptores y botones virtuales. Pendiente de confirmar.
 - **Seguridad de la compilación.** Vivado se ejecutará sobre código de los alumnos: usuario sin
   privilegios, directorio de trabajo aislado y límites de tiempo y memoria.
 

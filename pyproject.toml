@@ -14,13 +14,17 @@ dependencies = [
 
 [project.optional-dependencies]
 camera = ["opencv-python-headless>=4.8"]
-dev = ["pytest>=7", "ruff>=0.4"]
+web = ["fastapi>=0.110", "uvicorn>=0.29", "python-multipart>=0.0.9"]
+dev = ["pytest>=7", "ruff>=0.4", "httpx>=0.27"]
 
 [project.scripts]
 drl = "digitalremotelab.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"digitalremotelab.web" = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

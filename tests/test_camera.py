@@ -41,6 +41,7 @@ def make_cv2(capture, encode_ok=True):
         CAP_PROP_FOURCC=6,
         CAP_PROP_FRAME_WIDTH=3,
         CAP_PROP_FRAME_HEIGHT=4,
+        CAP_PROP_BUFFERSIZE=38,
         IMWRITE_JPEG_QUALITY=1,
         VideoWriter_fourcc=lambda *chars: "".join(chars),
         VideoCapture=video_capture,
@@ -94,3 +95,31 @@ def test_fake_camera_returns_jpeg_markers():
     data = cam.capture_jpeg()
     assert data.startswith(b"\xff\xd8") and data.endswith(b"\xff\xd9")
     assert cam.captures == 1
+
+
+def test_keep_open_opens_once_warms_up_once_and_closes_on_request():
+    capture = StubCapture()
+    opened = []
+    cv2 = make_cv2(capture)
+    original = cv2.VideoCapture
+    cv2.VideoCapture = lambda device, api: opened.append(device) or original(device, api)
+    cam = OpenCVCamera(CameraConfig(device="0", warmup_frames=2), cv2, keep_open=True)
+
+    cam.capture_jpeg()
+    cam.capture_jpeg()
+    cam.capture_jpeg()
+
+    assert opened == [0]
+    assert capture.reads == 2 + 3  # calentamiento una sola vez
+    assert not capture.released
+    assert capture.settings[38] == 1  # poca latencia
+    cam.close()
+    assert capture.released
+
+
+def test_keep_open_reopens_after_a_read_failure():
+    capture = StubCapture(frames_ok=False)
+    cam = OpenCVCamera(CameraConfig(device="0", warmup_frames=0), make_cv2(capture), keep_open=True)
+    with pytest.raises(CameraError, match="fotograma"):
+        cam.capture_jpeg()
+    assert capture.released and cam._cap is None

@@ -28,6 +28,8 @@ _LAB_KEYS = {
     "program_timeout_s",
     "jtag_freq_hz",
     "vivado_dir",
+    "work_dir",
+    "compile_timeout_s",
 }
 _BOARD_KEYS = {"id", "model", "ofl_board", "part_prefix", "ftdi_serial", "extra_args", "camera"}
 _CAMERA_KEYS = {"device", "width", "height", "warmup_frames", "jpeg_quality"}
@@ -79,6 +81,11 @@ class BoardConfig:
             object.__setattr__(self, name, from_model)
 
     @property
+    def vivado_part(self) -> str:
+        known = MODELS.get(self.model)
+        return known.vivado_part if known else ""
+
+    @property
     def model_name(self) -> str:
         known = MODELS.get(self.model)
         return known.name if known else self.model
@@ -94,6 +101,8 @@ class LabConfig:
     program_timeout_s: float = 60.0
     jtag_freq_hz: int | None = None
     vivado_dir: str = "/tools/Xilinx/Vivado/2022.2"
+    work_dir: str = "work"  # una carpeta por compilación
+    compile_timeout_s: float = 900.0
 
     def board(self, board_id: str | None = None) -> BoardConfig:
         """Devuelve la placa pedida o la primera si no se indica ninguna."""
@@ -169,7 +178,7 @@ def parse_config(data: dict[str, Any]) -> LabConfig:
     _only_known(lab, _LAB_KEYS, "lab")
 
     values: dict[str, Any] = {}
-    for key in ("openfpgaloader", "model", "vivado_dir"):
+    for key in ("openfpgaloader", "model", "vivado_dir", "work_dir"):
         if key in lab:
             values[key] = _expect(lab[key], str, f"lab.{key}")
     if "max_bitstream_bytes" in lab:
@@ -179,6 +188,10 @@ def parse_config(data: dict[str, Any]) -> LabConfig:
     if "program_timeout_s" in lab:
         values["program_timeout_s"] = float(
             _expect(lab["program_timeout_s"], (int, float), "lab.program_timeout_s")
+        )
+    if "compile_timeout_s" in lab:
+        values["compile_timeout_s"] = float(
+            _expect(lab["compile_timeout_s"], (int, float), "lab.compile_timeout_s")
         )
     if "jtag_freq_hz" in lab:
         values["jtag_freq_hz"] = _expect(lab["jtag_freq_hz"], int, "lab.jtag_freq_hz")
