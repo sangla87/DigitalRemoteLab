@@ -68,12 +68,27 @@ intercambiables. Una placa que no esté en el catálogo puede definirse en `lab.
   con un Vivado simulado; falta la verificación con el real, ver
   [docs/etapa-2-verificacion.md](docs/etapa-2-verificacion.md)).
 
+- `jobs.py`, `stream.py`, `web/` y `drl serve`: web con subida de VHDL o `.bit`, cola de un trabajo
+  a la vez (compila, carga y muestra el estado), foto y vídeo MJPEG en directo. Sin autenticación
+  todavía: escucha solo en `127.0.0.1` por defecto. Probada con placa, cámara y Vivado simulados.
+
+#### Arrancar la web
+
+```bash
+pip install -e ".[web,camera,dev]"
+drl serve                 # http://127.0.0.1:8000 (solo local)
+drl --fake serve          # con placa, cámara y compilador simulados, para probar la interfaz
+```
+
+Desde otro equipo, de momento, con un túnel SSH: `ssh -L 8000:127.0.0.1:8000 servidor` y abre
+`http://127.0.0.1:8000`. No uses `--host 0.0.0.0` sin un proxy delante: aún no hay autenticación.
+
 ### Pendiente
 
 - Verificar también la Nexys 4 DDR con hardware real cuando esté disponible (la etapa 1 se ha
   verificado solo con la Nexys 4).
-- Etapa 2 ([diseño](docs/etapa-2-diseno.md)): verificar `drl compile` con Vivado real, y escribir el
-  backend (FastAPI) con vídeo MJPEG y la página de subida.
+- Etapa 2 ([diseño](docs/etapa-2-diseno.md)): verificar `drl compile` y `drl serve` con Vivado,
+  placa y cámara reales (ver [docs/etapa-2-verificacion.md](docs/etapa-2-verificacion.md)).
 - Acceso de los alumnos sin VPN ni acceso directo al servidor (proxy inverso o máquina
   intermedia, y LTI 1.3 desde el aula virtual): a consultar con informática.
 - Etapas 3 a 5 (ver tabla) y las decisiones abiertas (ver "Decisiones de diseño").

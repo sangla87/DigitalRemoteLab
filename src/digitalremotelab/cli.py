@@ -71,6 +71,10 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("-b", "--board")
     p.add_argument("-o", "--output", help="Fichero de salida (por defecto, con fecha y hora).")
 
+    p = sub.add_parser("serve", help="Arranca la web del laboratorio (etapa 2).")
+    p.add_argument("--host", default="127.0.0.1", help="Por defecto solo local: 127.0.0.1.")
+    p.add_argument("--port", type=int, default=8000)
+
     sub.add_parser("boards", help="Muestra las placas configuradas y los modelos soportados.")
     sub.add_parser(
         "devices", help="Lista las placas USB (con su nº de serie) y las cámaras detectadas."
@@ -155,6 +159,27 @@ def _cmd_compile(lab: Lab, args: argparse.Namespace) -> int:
         if args.snapshot:
             time.sleep(max(args.settle, 0.0))
             print(f"Foto guardada en {_write_snapshot(lab, args.board, args.snapshot)}")
+    return 0
+
+
+def _cmd_serve(lab: Lab, args: argparse.Namespace) -> int:
+    try:
+        import uvicorn
+
+        from digitalremotelab.web.app import create_app
+    except ImportError:
+        print(
+            "Error: faltan las dependencias web: pip install 'digitalremotelab[web]'",
+            file=sys.stderr,
+        )
+        return 1
+    from digitalremotelab.camera import FakeCamera, OpenCVCamera
+    from digitalremotelab.stream import CameraStream
+
+    board = lab.config.board()
+    camera = FakeCamera() if args.fake else OpenCVCamera(board.camera, keep_open=True)
+    app = create_app(lab, CameraStream(camera))
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
     return 0
 
 
@@ -262,6 +287,7 @@ _COMMANDS = {
     "detect": _cmd_detect,
     "program": _cmd_program,
     "compile": _cmd_compile,
+    "serve": _cmd_serve,
     "snapshot": _cmd_snapshot,
     "boards": _cmd_boards,
     "devices": _cmd_devices,

@@ -19,6 +19,21 @@ Config: `config/lab.toml` con la Nexys 4 (`model = "nexys4"`) y, opcionalmente,
 | i | Con `compile_timeout_s = 5` | «La compilación superó el tiempo máximo» y no quedan procesos `vivado` ni `java` huérfanos (`pgrep -a vivado`). |
 | j | Dos compilaciones seguidas | Cada una en su carpeta; el `HOME` de Vivado es `work/<id>/home` (no se toca `~/.Xilinx`). |
 
+## Web (`drl serve`)
+
+Instala con `pip install -e ".[web,camera,dev]"`. Arranca `drl serve` en el servidor y entra por un
+túnel SSH (`ssh -L 8000:127.0.0.1:8000 servidor`), o desde X2Go en `http://127.0.0.1:8000`.
+
+| # | Prueba | Resultado esperado |
+|---|---|---|
+| k | Abre la página | Se ve el vídeo de la cámara real, fluido y sin retraso de varios segundos. Si hay mucho retraso, anota fps y latencia: `OpenCVCamera(keep_open=True)` pide un búfer de 1 fotograma, pero no todas las cámaras lo respetan. |
+| l | Sube `examples/contador.vhd` con reloj `1hz` desde el navegador | Estados «Compilando», «Cargando» y «Listo»; los LED cuentan a 1 Hz y se ven en el vídeo. |
+| m | Sube un `.bit` de la Zybo | Rechazo inmediato con mensaje de FPGA incorrecta; la placa no se toca. |
+| n | Sube un VHDL con un puerto no permitido | Lista de problemas en español, sin cola ni Vivado. |
+| o | Sube dos diseños seguidos (el segundo mientras compila el primero) | El segundo queda «En cola, posición 1» y se carga al terminar el primero. |
+| p | Mientras carga `openFPGALoader`, el vídeo sigue | La cámara no se corta al programar (son dispositivos distintos). |
+| q | Cierra la pestaña de vídeo y mira `top` | El servidor no consume CPU de más sin espectadores (el hilo de la cámara sí sigue leyendo; si pesa, hay que pararlo sin espectadores). |
+
 ## Pendiente de resolver aquí
 
 - **Memoria y usuario sin privilegios.** `VivadoCompiler` limita tiempo, entorno y tamaño de

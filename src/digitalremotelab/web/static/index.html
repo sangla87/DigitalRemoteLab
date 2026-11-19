@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laboratorio remoto de FPGAs</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1f24; --muted:#59636e; --line:#d0d7de; --accent:#0969da; --ok:#1a7f37; --bad:#cf222e; --card:#f6f8fa; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0d1117; --fg:#e6edf3; --muted:#9198a1; --line:#30363d; --accent:#4493f8; --ok:#3fb950; --bad:#f85149; --card:#151b23; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:16px; display:grid; gap:16px; grid-template-columns: 1fr; }
+  @media (min-width: 900px) { main { grid-template-columns: 360px 1fr; } }
+  h1 { font-size:1.3rem; margin:0 0 4px; } h2 { font-size:1rem; margin:0 0 8px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px; }
+  label { display:block; margin:12px 0 4px; font-weight:600; }
+  input, select, button { font:inherit; width:100%; padding:8px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--fg); }
+  button { background:var(--accent); color:#fff; border:0; cursor:pointer; margin-top:16px; font-weight:600; }
+  button:disabled { opacity:.5; cursor:default; }
+  .muted { color:var(--muted); font-size:.9rem; }
+  #status { margin-top:16px; }
+  .state { font-weight:600; } .done { color:var(--ok); } .error { color:var(--bad); }
+  ul.errors { margin:8px 0 0; padding-left:20px; color:var(--bad); font-family:ui-monospace, monospace; font-size:.85rem; word-break:break-word; }
+  img#video { width:100%; border-radius:6px; background:#000; aspect-ratio:16/9; object-fit:contain; }
+</style>
+</head>
+<body>
+<main>
+  <section class="card">
+    <h1>Laboratorio remoto de FPGAs</h1>
+    <p class="muted">Sube el VHDL que exporta Digital (o un .bit) y míralo funcionar en la placa real.</p>
+    <form id="form">
+      <label for="file">Fichero (.vhd, .vhdl o .bit)</label>
+      <input id="file" type="file" accept=".vhd,.vhdl,.bit" required>
+      <label for="clock">Reloj de tu circuito (<code>CLK</code>)</label>
+      <select id="clock"></select>
+      <p class="muted" id="clock-help"></p>
+      <button id="send" type="submit">Enviar a la placa</button>
+    </form>
+    <div id="status" aria-live="polite"></div>
+    <p class="muted">Los interruptores y pulsadores virtuales llegarán en una próxima etapa.</p>
+  </section>
+  <section class="card">
+    <h2>Placa en directo</h2>
+    <img id="video" src="/video" alt="Vídeo en directo de la placa">
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const CLOCK_TEXT = {
+  "1khz": "1 kHz: para multiplexar displays de 7 segmentos.",
+  "1hz": "1 Hz: se ve a simple vista (contadores, máquinas de estados).",
+  "10hz": "10 Hz: más rápido, para pruebas largas.",
+  "manual": "Manual: un flanco por pulso del botón central de la placa.",
+};
+const STATE_TEXT = {
+  queued: "En cola", compiling: "Compilando con Vivado…", programming: "Cargando en la placa…",
+  done: "Listo: tu diseño está en la placa", error: "Error",
+};
+let timer = null;
+// El nombre del diseño sale de la cabecera del .bit que sube el alumno: nunca se inserta sin escapar.
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+async function loadConfig() {
+  const cfg = await (await fetch("/api/config")).json();
+  $("clock").innerHTML = cfg.clocks.map((c) => `<option value="${c}">${c}</option>`).join("");
+  $("clock").value = cfg.default_clock;
+  const help = () => { $("clock-help").textContent = CLOCK_TEXT[$("clock").value] || ""; };
+  $("clock").addEventListener("change", help); help();
+}
+
+function render(job) {
+  const cls = job.state === "done" ? "done" : job.state === "error" ? "error" : "";
+  let html = `<div class="state ${cls}">${STATE_TEXT[job.state] || job.state}</div>`;
+  if (job.state === "queued" && job.queue_position !== null) html += `<div class="muted">Posición en la cola: ${job.queue_position + 1}</div>`;
+  if (job.design) html += `<div class="muted">Diseño: ${esc(job.design)}</div>`;
+  if (job.errors.length) html += "<ul class='errors'>" + job.errors.map((e) => `<li></li>`).join("") + "</ul>";
+  $("status").innerHTML = html;
+  [...$("status").querySelectorAll("li")].forEach((li, i) => { li.textContent = job.errors[i]; });
+}
+
+function showErrors(errors) { render({ state: "error", errors, design: null, queue_position: null }); }
+
+async function poll(id) {
+  clearTimeout(timer);
+  const res = await fetch(`/api/jobs/${id}`);
+  const job = await res.json();
+  if (!res.ok) return showErrors(job.errors || ["No se pudo consultar el estado."]);
+  render(job);
+  if (job.state === "done" || job.state === "error") { $("send").disabled = false; return; }
+  timer = setTimeout(() => poll(id), 1000);
+}
+
+$("form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const body = new FormData();
+  body.append("file", $("file").files[0]);
+  body.append("clock", $("clock").value);
+  $("send").disabled = true;
+  $("status").textContent = "Enviando…";
+  try {
+    const res = await fetch("/api/jobs", { method: "POST", body });
+    const data = await res.json();
+    if (!res.ok) { $("send").disabled = false; return showErrors(data.errors || [data.detail || "Error al enviar."]); }
+    render(data); poll(data.id);
+  } catch (e) { $("send").disabled = false; showErrors(["No se pudo contactar con el servidor."]); }
+});
+
+loadConfig();
+</script>
+</body>
+</html>
